@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { App } from './App';
 import * as actions from './actions';
@@ -29,8 +29,17 @@ export const setState = (update: Partial<AppState>) => {
 
 export const useAppState = <T>(fn: (appState: AppState) => T): T => {
   const [partialAppState, updateCallback] = useState<T>(fn(appState));
+  const partialAppStateRef = useRef(partialAppState);
   const partialUpdateCallback = useCallback((appState: AppState) => {
-    updateCallback(fn(appState));
+    const newVal = fn(appState);
+    // Workaround for what seems to be a React bug:
+    // When changing state for component A, components B+ will
+    // also re-render even though their state did not change.
+    // When changing component A again behavior is normal again.
+    if (partialAppStateRef.current !== newVal) {
+      partialAppStateRef.current = newVal;
+      updateCallback(newVal);
+    }
   }, []);
   useEffect(() => {
     addUpdateCallback(partialUpdateCallback);
